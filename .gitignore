@@ -1,0 +1,8 @@
+# Dependency directories
+node_modules/
+
+# config
+config.json
+
+# macOS
+.DS_Store
