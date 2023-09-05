@@ -102,7 +102,7 @@ async function sendMessageToSlack (site, msg) {
           elements: [
             {
               type: 'mrkdwn',
-              text: `🧭 網址：<${site.url}|${site.url}>    🕜 時間：${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
+              text: `🧭 網址：<${site.url}|${site.url}>    🕜 時間：${new Date().toLocaleDateString('zh-TW')} ${new Date().toLocaleTimeString('zh-TW')}
 ❕ 原因：${msg}`
             }
           ]
