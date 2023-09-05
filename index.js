@@ -94,7 +94,7 @@ async function sendMessageToSlack (site, msg) {
           type: 'header',
           text: {
             type: 'plain_text',
-            text: `告訴你一個壞消息 ${site.name} 倒站囉！😱`
+            text: `${site.name} 倒站囉！😱`
           }
         },
         {
