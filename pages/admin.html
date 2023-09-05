@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HealthCheck</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
+  <style>
+    #app {
+      padding: 2rem 1rem;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-weight: 200;
+      color: #888;
+    }
+
+    h1 span {
+      color: #68ae70;
+    }
+
+    .sites-table th {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+      color: #888;
+    }
+
+    @media (max-width: 575px) {
+      .sites-table th:nth-child(2),
+      .sites-table th:nth-child(3),
+      .sites-table td:nth-child(2),
+      .sites-table td:nth-child(3) {
+        display: none;
+      }
+    }
+  </style>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://kit.fontawesome.com/89064da233.js" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="app">
+    <h1 class="mb-3">
+      Health<span>Check</span>
+    </h1>
+
+    <form
+      v-if="!isLogin"
+      class="login"
+      @submit.prevent="login()"
+    >
+      <h2>
+        Login
+      </h2>
+      <input v-model="user" type="text">
+      <input v-model="pwd" type="text">
+      <button>Login</button>
+    </form>
+
+    <form
+      v-else
+      class="main"
+      @submit.prevent="updateConfig()"
+    >
+      <div
+        v-if="needToSave"
+        class="alert alert-warning"
+      >
+        <i class="fa-solid fa-circle-exclamation"></i>
+        After making any changes, you must click Save again.
+      </div>
+
+      <div class="card mb-3 sites">
+        <div class="card-header">
+          <i class="fa-solid fa-stethoscope"></i>
+          Sites Setting
+        </div>
+        <div class="card-body">
+          <table class="table text-center align-middle sites-table">
+            <thead>
+              <tr>
+                <th class="text-start">Name</th>
+                <th>
+                  <i class="fa-regular fa-clock"></i>
+                  Frequency
+                </th>
+                <th>
+                  <i class="fa-solid fa-stopwatch"></i>
+                  Timeout
+                </th>
+                <th>
+                  <i class="fa-regular fa-bell"></i>
+                  Status
+                </th>
+                <th>
+                  <i class="fa-regular fa-pen-to-square"></i>
+                  Edit
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(site, idx) in config.sites"
+                :key="`site_${idx}`"
+                draggable="true"
+                @dragstart="dragstart($event, config.sites, site, idx)"
+                @dragover.prevent="dragover($event, config.sites, site, idx)"
+                @drop.prevent="drop($event, config.sites, site, idx)"
+                @dragend.prevent="drop($event, config.sites, site, idx, true)"
+              >
+                <td class="text-start">
+                  {{ site.name }}
+                </td>
+                <td>
+                  {{ site.freq }}
+                </td>
+                <td>
+                  {{ site.timeout }}ms
+                </td>
+                <td>
+                  <template v-if="site.status === 'on'">
+                    <i class="fa-solid fa-bell"></i>
+                  </template>
+                  <template v-else>
+                    <i class="fa-solid fa-bell-slash"></i>
+                  </template>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-warning me-1"
+                    @click="editSite(site, idx)"
+                  >
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-danger"
+                    @click="removeSite(idx)"
+                  >
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="mb-3 text-center">
+            <button
+              type="button"
+              class="btn btn-success"
+              @click="addNewSite()"
+            >
+              <i class="fa-solid fa-plus"></i>
+              Add Site
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-3 slack">
+        <div class="card-header">
+          <i class="fa-brands fa-slack"></i>
+          Slack Settings
+        </div>
+        <div class="card-body">
+          <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">
+              Slack Token
+            </label>
+            <div class="col-sm-10">
+              <input v-model="config.slackToken" class="form-control" type="text">
+            </div>
+          </div>
+          <div class="mb-3 row">
+            <label class="col-sm-2 col-form-label">
+              Slack Channel
+            </label>
+            <div class="col-sm-10">
+              <div class="input-group mb-3">
+                <span class="input-group-text">
+                  #
+                </span>
+                <input v-model="config.slackChannel" class="form-control" type="text">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="needToSave"
+        class="alert alert-warning"
+      >
+        <i class="fa-solid fa-circle-exclamation"></i>
+        After making any changes, you must click Save again.
+      </div>
+
+      <div class="text-end">
+        <button class="btn btn-warning">
+          Save
+        </button>
+      </div>
+    </form>
+
+    <div
+      v-if="editing"
+      class="modal-backdrop fade"
+      :class="{ show: editing }"
+    ></div>
+    <div
+      v-if="editing"
+      class="modal"
+      :class="{ show: editing, 'd-block': editing }"
+    >
+      <div
+        class="modal-dialog"
+        style="max-width: 1200px;"
+      >
+        <form
+          class="modal-content"
+          @submit.prevent="updateSite()"
+        >
+          <div class="modal-header">
+            <h5 class="modal-title">
+              Edit {{ currentSite.name }}
+            </h5>
+            <button
+              type="button"
+              class="btn-close"
+              @click="editing = false"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3 row">
+              <label class="col-sm-2 col-form-label">
+                Name
+              </label>
+              <div class="col-sm-10">
+                <input
+                  v-model="currentSite.name"
+                  class="form-control"
+                  required
+                >
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label class="col-sm-2 col-form-label">
+                URL
+              </label>
+              <div class="col-sm-10">
+                <input
+                  v-model="currentSite.url"
+                  class="form-control"
+                  type="url"
+                  placeholder="https:// (Only GET Method is available)"
+                  required
+                >
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label class="col-sm-2 col-form-label">
+                Frequency
+              </label>
+              <div class="col-sm-10">
+                <select
+                  v-model="currentSite.freq"
+                  class="form-control"
+                  required
+                >
+                  <option value="10s">10s</option>
+                  <option value="30s">30s</option>
+                  <option value="1m">1m</option>
+                  <option value="5m">5m</option>
+                  <option value="10m">10m</option>
+                  <option value="30m">30m</option>
+                  <option value="1h">1h</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label class="col-sm-2 col-form-label">
+                Timeout (ms)
+              </label>
+              <div class="col-sm-10">
+                <input
+                  v-model.number="currentSite.timeout"
+                  type="number"
+                  min="2000"
+                  max="15000"
+                  class="form-control"
+                  required
+                >
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label class="col-sm-2 col-form-label">
+                Expected Status Code
+              </label>
+              <div class="col-sm-10">
+                <input
+                  v-model.number="currentSite.expectStatusCode"
+                  type="number"
+                  placeholder="200, 401, ...etc"
+                  class="form-control"
+                  required
+                >
+              </div>
+            </div>
+            <div class="mb-3 row">
+              <label class="col-sm-2 col-form-label">
+                Status
+              </label>
+              <div class="col-sm-10">
+                <div class="form-check form-check-inline">
+                  <input
+                    v-model="currentSite.status"
+                    type="radio"
+                    name="site-status"
+                    value="on"
+                    class="form-check-input"
+                    id="siteStatusRadioOn"
+                  >
+                  <label class="form-check-label" for="siteStatusRadioOn">
+                    <i class="fa-solid fa-bell"></i> On
+                  </label>
+                </div>
+                <div class="form-check form-check-inline">
+                  <input
+                    v-model="currentSite.status"
+                    type="radio"
+                    name="site-status"
+                    value="off"
+                    class="form-check-input"
+                    id="siteStatusRadioOff"
+                  >
+                  <label class="form-check-label" for="siteStatusRadioOff">
+                    <i class="fa-solid fa-bell-slash"></i> Off
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="editing = false"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn btn-primary"
+            >
+              <i class="fa-solid fa-check"></i>
+              OK
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted } = Vue
+
+    createApp({
+      setup () {
+        const user = ref('')
+        const pwd = ref('')
+        const config = ref({})
+        const isLogin = ref(false)
+
+        const currentSite = ref(null)
+        const currentSiteIdx = ref(null)
+        const editing = ref(false)
+        const needToSave = ref(false)
+
+        // Login
+        async function login () {
+          try {
+            const res = await axios.post('/auth', { user: user.value, pwd: pwd.value })
+
+            if (!res.data.token) {
+              throw new Error('Invalid user')
+            } else {
+              isLogin.value = true
+              localStorage.setItem('token', res.data.token)
+              axios.defaults.headers.Authorization = res.data.token
+              getConfig()
+            }
+          } catch (err) {
+            alert(err.response?.data?.message || 'An error occured')
+          }
+        }
+
+        // Config Editing
+        async function getConfig () {
+          try {
+            const res = await axios.get('/config')
+            config.value = res.data
+          } catch (err) {
+            alert(err.response?.data?.message || 'An error occured')
+          }
+        }
+
+        function addNewSite () {
+          editing.value = true
+          currentSite.value = {
+            name: null,
+            url: null,
+            freq: '30s',
+            timeout: 5000,
+            expectStatusCode: 200,
+            status: 'on'
+          }
+          currentSiteIdx.value = null
+        }
+
+        function editSite (site, idx) {
+          currentSite.value = JSON.parse(JSON.stringify(site))
+          currentSiteIdx.value = idx
+          editing.value = true
+        }
+
+        function removeSite (idx) {
+          const configTmp = JSON.parse(JSON.stringify(config.value))
+          configTmp.sites.splice(idx, 1)
+          config.value = configTmp
+          needToSave.value = true
+        }
+
+        function updateSite () {
+          if (!isNaN(currentSiteIdx.value)) {
+            config.value.sites[currentSiteIdx.value] = JSON.parse(JSON.stringify(currentSite.value))
+          } else {
+            config.value.sites.push(currentSite.value)
+          }
+
+          editing.value = false
+          needToSave.value = true
+        }
+
+        // update config
+        async function updateConfig () {
+          try {
+            const res = await axios.put('/config', config.value)
+            alert('Config updated')
+            config.value = res.data
+            needToSave.value = false
+          } catch (err) {
+            alert(err.response?.data?.message || 'An error occured')
+          }
+        }
+
+        // Table drag and rop
+        const dragIdx = ref(null)
+
+        function dragstart ($event, list, item, idx) {
+          dragIdx.value = idx
+          // for allow drop
+          $event.dataTransfer.setData('text/plain', null)
+        }
+
+        function dragover ($event, list, item, idx) {
+          if (!Number.isInteger(dragIdx.value) || dragIdx.value === idx) {
+            return
+          }
+
+          // swap
+          [list[dragIdx.value], list[idx]] = [list[idx], list[dragIdx.value]]
+          dragIdx.value = idx
+          const configTmp = JSON.parse(JSON.stringify(config.value))
+          configTmp.sites = list
+          config.value = configTmp
+        }
+
+        function drop ($event, list, item, idx, updateData = false) {
+          dragIdx.value = null
+          needToSave.value = true
+        }
+
+        onMounted(() => {
+          const token = localStorage.getItem('token')
+
+          if (token) {
+            isLogin.value = true
+            axios.defaults.headers.Authorization = token
+            getConfig()
+          }
+        })
+
+        return {
+          isLogin,
+          user,
+          pwd,
+          config,
+
+          // functions
+          login,
+          addNewSite,
+          editSite,
+          dragstart,
+          dragover,
+          drop,
+          removeSite,
+          updateSite,
+          currentSite,
+          currentSiteIdx,
+          editing,
+          updateConfig,
+          needToSave
+        }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>
