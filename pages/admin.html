@@ -468,7 +468,7 @@
         }
 
         function updateSite () {
-          if (!isNaN(currentSiteIdx.value)) {
+          if (Number.isInteger(currentSiteIdx.value)) {
             config.value.sites[currentSiteIdx.value] = JSON.parse(JSON.stringify(currentSite.value))
           } else {
             config.value.sites.push(currentSite.value)
