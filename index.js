@@ -84,6 +84,7 @@ async function checkSite (site) {
 
 async function sendMessageToSlack (site, msg) {
   try {
+    const now = new Date(new Date().getTime() + 8 * 60 * 60 * 1000)
     const url = 'https://slack.com/api/chat.postMessage'
     const res = await axios.post(url, {
       channel: '#' + (config.slackChannel || 'healthcheck'),
@@ -102,7 +103,7 @@ async function sendMessageToSlack (site, msg) {
           elements: [
             {
               type: 'mrkdwn',
-              text: `🧭 網址：<${site.url}|${site.url}>    🕜 時間：${new Date().toLocaleDateString('zh-TW')} ${new Date().toLocaleTimeString('zh-TW')}
+              text: `🧭 網址：<${site.url}|${site.url}>    🕜 時間：${now.toLocaleDateString('zh-TW')} ${now.toLocaleTimeString('zh-TW')}
 ❕ 原因：${msg}`
             }
           ]
