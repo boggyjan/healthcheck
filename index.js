@@ -194,34 +194,55 @@ app.get('/config', (req, res) => {
     return
   }
 
+  // 檢查有沒有config檔
   if (!fs.existsSync(configPath)) {
     res.send('{"users":[],slackToken":null,"slackChannel":"healthcheck","sites":[]}')
     return
   }
 
-  const configStr = fs.readFileSync(configPath, 'utf-8')
+  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+  // 移除config中的users
+  delete config.users
+  const configStr = JSON.stringify(config)
   res.send(configStr)
 })
 
 // Frontend update config
 app.put('/config', (req, res) => {
-  if (req.headers.authorization && checkToken(req.headers.authorization)) {
-    const config = req.body
-    const configStr = JSON.stringify(config)
+  try {
+    if (req.headers.authorization && checkToken(req.headers.authorization)) {
+      const config = req.body
 
-    if (!config.users || !config.users.length) {
-      res.send('{"message":"no users data"}', 404)
-      return
-    } else if (!config.slackChannel || !config.slackToken) {
-      res.send('{"message":"no slack data"}', 404)
-      return
+      // 檢查必要欄位
+      if (!config.sites) {
+        res.send('{"message":"no users data"}', 404)
+        return
+      } else if (!config.slackChannel || !config.slackToken) {
+        res.send('{"message":"no slack data"}', 404)
+        return
+      }
+
+      // 檢查有沒有config檔
+      if (!fs.existsSync(configPath)) {
+        res.send('{"users":[],slackToken":null,"slackChannel":"healthcheck","sites":[]}')
+        return
+      }
+
+      const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
+      // 只更新需要更新的欄位
+      savedConfig.sites = config.sites
+      savedConfig.slackChannel = config.slackChannel
+      savedConfig.slackToken = config.slackToken
+      const configStr = JSON.stringify(savedConfig)
+
+      fs.writeFileSync(configPath, configStr, 'utf-8')
+      res.send(configStr)
+      getConfig()
+    } else {
+      res.send('{"message":"invalid user"}', 401)
     }
-
-    fs.writeFileSync(configPath, configStr, 'utf-8')
-    res.send(configStr)
-    getConfig()
-  } else {
-    res.send('{"message":"invalid user"}', 401)
+  } catch {
+    res.send('{"message":"An error occurred"}', 404)
   }
 })
 
