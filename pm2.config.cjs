@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "iDripHealthCheck",
+      name: "HealthCheck",
       script: "index.js",
       watch: true,
       // ignore_watch: [''],
