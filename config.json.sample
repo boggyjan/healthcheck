@@ -1,0 +1,1 @@
+{"users":[{"user":"my_user_name","pwd":"123456789"}],"slackToken":"token_xxxxx","slackChannel":"healthcheck","sites":[{"name":"😺 My Cat Project","freq":"1m","url":"https://www.mycatproject.tw","timeout":5000,"expectStatusCode":200,"status":"on"}]}
