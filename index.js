@@ -5,6 +5,9 @@ import axios from 'axios'
 import { CronJob } from 'cron'
 import md5 from 'md5'
 
+// 設定Timezone
+process.env.TZ = 'Asia/Taipei'
+
 const port = 5454
 const app = express()
 app.use(bodyParser.json())
@@ -96,7 +99,7 @@ async function checkSite (site) {
 
 async function sendMessageToSlack (site, msg) {
   try {
-    const now = new Date(new Date().getTime() + 8 * 60 * 60 * 1000)
+    const now = new Date()
     const url = 'https://slack.com/api/chat.postMessage'
     const res = await axios.post(url, {
       channel: '#' + (config.slackChannel || 'healthcheck'),
