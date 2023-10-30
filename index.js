@@ -66,18 +66,30 @@ async function checkSite (site) {
       }
     )
 
-    if (res.status !== site.expectStatusCode) {
+    if (res.status === site.expectStatusCode) {
+      site.errorTimes = 0
+    } else {
+      site.errorTimes++
+    }
+
+    if (site.errorTimes > 1) {
       const errorMsg = `非預期的status code，預期的是${site.expectStatusCode}，回應的是${res.status}`
       sendMessageToSlack(site, errorMsg)
     }
   } catch (err) {
     if (err.response && err.response.status === site.expectStatusCode) {
-      return
-    } else if (err.response) {
-      const errorMsg = `非預期的status code，預期的是${site.expectStatusCode}，回應的是${err.response.status}`
-      sendMessageToSlack(site, errorMsg)
+      site.errorTimes = 0
     } else {
-      sendMessageToSlack(site, '網站沒有回應')
+      site.errorTimes++
+    }
+
+    if (site.errorTimes > 1) {
+      if (err.response && err.response.status) {
+        const errorMsg = `非預期的status code，預期的是${site.expectStatusCode}，回應的是${err.response.status}`
+        sendMessageToSlack(site, errorMsg)
+      } else {
+        sendMessageToSlack(site, '網站沒有回應')
+      }
     }
   }
 }
@@ -127,6 +139,7 @@ function getConfig () {
   try {
     // update config
     config = JSON.parse(configStr)
+    config.sites.forEach(site => site.errorTimes = 0)
   } catch {
     console.log('[Error] config.json broken')
     return
@@ -161,7 +174,7 @@ function checkToken (token) {
 
 function initHealthCheckerCronJob () {
   getConfig()
-  const job = new CronJob('0,5,10,15,20,25,30,35,40,45,50,55 * * * * *', trigger)
+  const job = new CronJob('*/5 * * * * *', trigger)
   job.start()
   console.log('[Success] CronJob started')
 }
